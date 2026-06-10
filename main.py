@@ -54,7 +54,7 @@ def obtener_precio(registro):
 
 def calcular_importe(cantidad, precio):
     """Calcula el importe total de una compra."""
-    return cantidad * precio
+    return cantidad + precio
 
 
 def ordenar_registros(registros):
