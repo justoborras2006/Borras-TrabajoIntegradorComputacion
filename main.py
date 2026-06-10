@@ -1,4 +1,27 @@
 import csv
+from pathlib import Path
+
+
+ARCHIVO_ORDENADO = "COMPRAS_supermercado(2).csv"
+ARCHIVO_DESORDENADO = "COMPRAS_supermercado_desordenado_solo_sucursal(1).csv"
+
+
+def buscar_archivo(nombre_archivo):
+    """
+    Busca el archivo primero en la carpeta actual y después en la carpeta data.
+
+    Esto permite usar los CSV con su nombre original, sin tener que renombrarlos.
+    """
+    rutas_posibles = [
+        Path(nombre_archivo),
+        Path("data") / nombre_archivo,
+    ]
+
+    for ruta in rutas_posibles:
+        if ruta.exists():
+            return ruta
+
+    raise FileNotFoundError(f"No se encontró el archivo: {nombre_archivo}")
 
 
 def leer_csv(path_csv):
@@ -32,6 +55,11 @@ def obtener_precio(registro):
 def calcular_importe(cantidad, precio):
     """Calcula el importe total de una compra."""
     return cantidad * precio
+
+
+def ordenar_registros(registros):
+    """Ordena los registros por sucursal y producto."""
+    return sorted(registros, key=lambda registro: (obtener_sucursal(registro), obtener_producto(registro)))
 
 
 def calcular_total_producto(registros, indice_inicio, sucursal_actual, producto_actual):
@@ -96,13 +124,13 @@ def procesar_sucursal(registros, indice_inicio):
             registros,
             i,
             sucursal_actual,
-            producto_actual
+            producto_actual,
         )
 
         productos.append({
             "producto": producto_actual,
             "total_unidades": total_unidades,
-            "total_pesos": total_pesos
+            "total_pesos": total_pesos,
         })
 
         total_unidades_sucursal += total_unidades
@@ -112,14 +140,14 @@ def procesar_sucursal(registros, indice_inicio):
             producto_actual,
             total_pesos,
             mayor_producto,
-            mayor_importe
+            mayor_importe,
         )
 
         menor_producto, menor_importe = actualizar_menor_producto(
             producto_actual,
             total_pesos,
             menor_producto,
-            menor_importe
+            menor_importe,
         )
 
         i = nuevo_indice
@@ -133,24 +161,27 @@ def procesar_sucursal(registros, indice_inicio):
         "menor_producto": menor_producto,
         "menor_importe": menor_importe,
         "total_importe_sucursal": total_importe_sucursal,
-        "nuevo_indice": i
+        "nuevo_indice": i,
     }
 
 
 def procesar_registros(registros):
     """
-    Procesa todos los registros del CSV.
+    Procesa todos los registros.
 
-    Importante: los registros deben estar ordenados por sucursal y producto.
+    Los registros se ordenan antes de procesarse, por eso funciona tanto
+    con el archivo ordenado como con el archivo desordenado.
     """
+    registros_ordenados = ordenar_registros(registros)
+
     sucursales = []
     cantidad_sucursales = 0
     importe_total_general = 0
 
     i = 0
 
-    while i < len(registros):
-        resultado_sucursal = procesar_sucursal(registros, i)
+    while i < len(registros_ordenados):
+        resultado_sucursal = procesar_sucursal(registros_ordenados, i)
 
         sucursales.append(resultado_sucursal)
         cantidad_sucursales += 1
@@ -161,8 +192,15 @@ def procesar_registros(registros):
     return {
         "sucursales": sucursales,
         "cantidad_sucursales": cantidad_sucursales,
-        "importe_total_general": importe_total_general
+        "importe_total_general": importe_total_general,
     }
+
+
+def procesar_archivo(nombre_archivo):
+    """Busca, lee y procesa un archivo CSV."""
+    path_csv = buscar_archivo(nombre_archivo)
+    registros = leer_csv(path_csv)
+    return procesar_registros(registros)
 
 
 def mostrar_resultado_sucursal(resultado_sucursal):
@@ -199,19 +237,36 @@ def mostrar_resultado_general(resultado):
     print(f"Importe total de todas las sucursales: {resultado['importe_total_general']:.2f}")
 
 
-def procesar_archivo(path_csv):
-    """Lee y procesa el archivo CSV."""
-    registros = leer_csv(path_csv)
-    return procesar_registros(registros)
+def elegir_archivo(opcion):
+    """Devuelve el nombre del archivo según la opción elegida."""
+    if opcion == "1":
+        return ARCHIVO_ORDENADO
+
+    if opcion == "2":
+        return ARCHIVO_DESORDENADO
+
+    raise ValueError("Opción inválida")
 
 
 def menu():
     """Función principal del programa."""
-    path_csv = input("Indique el path del csv: ")
+    print("Seleccione el archivo a procesar:")
+    print(f"1 - {ARCHIVO_ORDENADO}")
+    print(f"2 - {ARCHIVO_DESORDENADO}")
 
-    resultado = procesar_archivo(path_csv)
+    opcion = input("Ingrese una opción: ").strip()
 
-    mostrar_resultado_general(resultado)
+    try:
+        nombre_archivo = elegir_archivo(opcion)
+        resultado = procesar_archivo(nombre_archivo)
+        mostrar_resultado_general(resultado)
+
+    except FileNotFoundError as error:
+        print(f"Error: {error}")
+        print("Verificá que el archivo esté en la carpeta principal del proyecto o dentro de la carpeta data.")
+
+    except ValueError as error:
+        print(f"Error: {error}")
 
 
 if __name__ == "__main__":
